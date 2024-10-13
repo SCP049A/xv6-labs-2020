@@ -34,16 +34,18 @@ proc_mapstacks(pagetable_t kpgtbl)
 {
   struct proc *p;
   
-  for(p = proc; p < &proc[NPROC]; p++) {
-    char *pa = kalloc();
+  for(p = proc; p < &proc[NPROC]; p++) {//遍历所有的进程结构体
+    char *pa = kalloc();//调用kalloc分配一页内存，用于内核栈
     if(pa == 0)
       panic("kalloc");
-    uint64 va = KSTACK((int) (p - proc));
-    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    uint64 va = KSTACK((int) (p - proc));//计算进程p的虚拟地址
+    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);//在内核页表中映射虚拟地址va到分配的物理地址pa，设置页面大小为PGSIZE，
+    //并设置读写权限
   }
 }
 
 // initialize the proc table.
+//初始化进程表中的每个进程的状态和锁
 void
 procinit(void)
 {
@@ -61,6 +63,7 @@ procinit(void)
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
 // to a different CPU.
+//返回正在运行的CPU的ID，必须在禁用中断下使用
 int
 cpuid()
 {
@@ -70,6 +73,8 @@ cpuid()
 
 // Return this CPU's cpu struct.
 // Interrupts must be disabled.
+//返回当前正在执行的CPU的结构体
+//必须在关中断下使用，否则在调用后可能会发生上下文切换导致数据不一致
 struct cpu*
 mycpu(void)
 {
@@ -79,16 +84,18 @@ mycpu(void)
 }
 
 // Return the current struct proc *, or zero if none.
+//返回当前进程的结构体
 struct proc*
 myproc(void)
 {
-  push_off();
-  struct cpu *c = mycpu();
-  struct proc *p = c->proc;
-  pop_off();
+  push_off();//禁用中断
+  struct cpu *c = mycpu();//获取当前运行的CPU
+  struct proc *p = c->proc;//获取当前CPU上运行的进程
+  pop_off();//恢复中断
   return p;
 }
 
+//分配一个新的进程PID
 int
 allocpid()
 {
@@ -171,7 +178,7 @@ freeproc(struct proc *p)
   p->state = UNUSED;
 }
 
-// Create a user page table for a given process, with no user memory,
+// Create a user page table for a given process, with no user memory,为给定进程创建一个用户页表
 // but with trampoline and trapframe pages.
 pagetable_t
 proc_pagetable(struct proc *p)
@@ -205,7 +212,7 @@ proc_pagetable(struct proc *p)
   return pagetable;
 }
 
-// Free a process's page table, and free the
+// Free a process's page table, and free the释放页表
 // physical memory it refers to.
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
@@ -254,7 +261,7 @@ userinit(void)
   release(&p->lock);
 }
 
-// Grow or shrink user memory by n bytes.
+// Grow or shrink user memory by n bytes.增长或缩小用户内存n个字节
 // Return 0 on success, -1 on failure.
 int
 growproc(int n)
@@ -327,6 +334,7 @@ fork(void)
 
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
+//确保进程终止后，其所有子进程转交给init，避免出现孤儿进程
 void
 reparent(struct proc *p)
 {
@@ -434,7 +442,7 @@ wait(uint64 addr)
   }
 }
 
-// Per-CPU process scheduler.
+// Per-CPU process scheduler.CPU的进程调度器
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
 //  - choose a process to run.
@@ -480,7 +488,7 @@ scheduler(void)
   }
 }
 
-// Switch to scheduler.  Must hold only p->lock
+// Switch to scheduler.  Must hold only p->lock 实现上下文切换功能
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
 // kernel thread, not this CPU. It should
@@ -518,7 +526,7 @@ yield(void)
   release(&p->lock);
 }
 
-// A fork child's very first scheduling by scheduler()
+// A fork child's very first scheduling by scheduler() 在子进程被首次调度时执行
 // will swtch to forkret.
 void
 forkret(void)
@@ -542,7 +550,7 @@ forkret(void)
   usertrapret();
 }
 
-// Atomically release lock and sleep on chan.
+// Atomically release lock and sleep on chan. chan应该是某个条件变量
 // Reacquires lock when awakened.
 void
 sleep(void *chan, struct spinlock *lk)
